@@ -8,8 +8,17 @@ const app = express();
 // Connect Database
 connectDB();
 
-// Middleware
-app.use(cors({ origin: process.env.CLIENT_URL }));
+// --- UPDATED MIDDLEWARE ---
+app.use(cors({
+  origin: [
+    'https://true-friend-ai-new.vercel.app', // Your Vercel URL
+    'http://localhost:5173'                  // For local testing
+  ],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+}));
+
 app.use(express.json());
 
 // Routes
