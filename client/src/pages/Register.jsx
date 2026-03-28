@@ -1,124 +1,149 @@
 import { useState } from 'react';
-import api from '../services/api';
-import { Calendar, Sparkles, AlertTriangle, Loader2, RefreshCw, BookOpen, Zap } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { User, Mail, Lock, ArrowRight, Sparkles, Eye, EyeOff } from 'lucide-react';
 
-export default function StudyPlan() {
-  const [plan, setPlan] = useState('');
-  const [weakTopics, setWeakTopics] = useState([]);
+const GOALS = [
+  { value:'Web Development',         emoji:'🌐', desc:'HTML, JS, React, Node' },
+  { value:'Data Science',            emoji:'📊', desc:'Python, Pandas, Stats' },
+  { value:'Machine Learning',        emoji:'🤖', desc:'Neural Networks, NLP' },
+  { value:'Competitive Programming', emoji:'⚡', desc:'DSA, Graphs, DP' },
+  { value:'System Design',           emoji:'🏗', desc:'Scalability, Databases' },
+  { value:'Mobile Development',      emoji:'📱', desc:'React Native, Flutter' },
+  { value:'Cybersecurity',           emoji:'🔐', desc:'Networking, Cryptography' },
+];
+
+export default function Register() {
+  const { register } = useAuth();
+  const navigate = useNavigate();
+  const [form, setForm] = useState({ name:'', email:'', password:'', learningGoal:'' });
+  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [generated, setGenerated] = useState(false);
+  const [showPass, setShowPass] = useState(false);
+  const [step, setStep] = useState(1);
 
-  const generate = async () => {
-    setLoading(true);
-    try {
-      const { data } = await api.post('/ai/studyplan');
-      setPlan(data.plan);
-      setWeakTopics(data.weakTopics || []);
-      setGenerated(true);
-    } catch { setPlan('Failed to generate study plan. Please try again.'); setGenerated(true); }
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError(''); setLoading(true);
+    try { await register(form.name, form.email, form.password, form.learningGoal); navigate('/'); }
+    catch (err) { setError(err.response?.data?.message || 'Registration failed'); setStep(1); }
     finally { setLoading(false); }
   };
 
-  const reset = () => { setGenerated(false); setPlan(''); setWeakTopics([]); };
-
   return (
-    <div style={{ maxWidth: 760, margin: '0 auto', paddingBottom: 40 }}>
+    <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', background:'var(--bg)', padding:'24px 16px', position:'relative', overflow:'hidden' }}>
 
-      {/* Header */}
-      <div className="fi fi-1" style={{ display:'flex', alignItems:'center', gap:14, marginBottom:32 }}>
-        <div className="anim-grad" style={{ width:44, height:44, borderRadius:12, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-          <Calendar size={20} color="#fff" />
-        </div>
-        <div>
-          <h1 className="font-display" style={{ fontSize:'clamp(20px,2.5vw,26px)', fontWeight:700, color:'var(--t1)', marginBottom:4 }}>
-            Study Roadmap
-          </h1>
-          <p style={{ fontSize:13, color:'var(--t2)' }}>AI generates a personalized 7-day plan from your quiz history</p>
-        </div>
-      </div>
+      <div className="orb" style={{ position:'fixed', top:'25%', right:'15%', width:360, height:360, borderRadius:'50%', background:'radial-gradient(circle, rgba(244,114,182,0.1) 0%, transparent 70%)', filter:'blur(60px)', pointerEvents:'none' }} />
+      <div className="orb3" style={{ position:'fixed', bottom:'20%', left:'15%', width:280, height:280, borderRadius:'50%', background:'radial-gradient(circle, rgba(45,212,191,0.08) 0%, transparent 70%)', filter:'blur(60px)', pointerEvents:'none' }} />
 
-      {!generated ? (
-        /* Empty state */
-        <div className="fi fi-2" style={{
-          display:'flex', flexDirection:'column', alignItems:'center', textAlign:'center',
-          padding:'64px 40px', borderRadius:24, position:'relative', overflow:'hidden',
-          background:'rgba(255,255,255,0.02)', border:'1px solid rgba(255,255,255,0.07)',
-        }}>
-          <div style={{ position:'absolute', inset:0, background:'radial-gradient(ellipse 60% 50% at 50% 60%, rgba(139,92,246,0.09) 0%, transparent 70%)', pointerEvents:'none' }} />
-
-          <div className="anim-grad" style={{ width:72, height:72, borderRadius:20, display:'flex', alignItems:'center', justifyContent:'center', marginBottom:24, boxShadow:'0 0 40px rgba(139,92,246,0.3)', position:'relative', zIndex:1 }}>
-            <BookOpen size={32} color="#fff" />
+      <div className="fi fi-1" style={{ width:'100%', maxWidth:440 }}>
+        {/* Logo */}
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:10, marginBottom:28 }}>
+          <div className="anim-grad" style={{ width:34, height:34, borderRadius:10, display:'flex', alignItems:'center', justifyContent:'center' }}>
+            <Sparkles size={16} color="#fff" />
           </div>
+          <span className="font-display" style={{ fontWeight:700, fontSize:18, color:'var(--t1)' }}>
+            True Friend <span className="grad-text">AI</span>
+          </span>
+        </div>
 
-          <h2 className="font-display" style={{ fontSize:22, fontWeight:700, color:'var(--t1)', marginBottom:10, position:'relative', zIndex:1 }}>Ready to level up?</h2>
-          <p style={{ fontSize:14, color:'var(--t2)', maxWidth:400, lineHeight:1.7, marginBottom:36, position:'relative', zIndex:1 }}>
-            We'll analyze your quiz performance and build a smart recovery roadmap targeting your weak spots.
-          </p>
-
-          {/* Feature row */}
-          <div style={{ display:'flex', gap:28, marginBottom:40, position:'relative', zIndex:1, flexWrap:'wrap', justifyContent:'center' }}>
-            {[['⚡','Adaptive','Based on your data'],['📅','7-Day Plan','Day-by-day schedule'],['🎯','Focused','Target weak areas']].map(([icon,t,d]) => (
-              <div key={t} style={{ textAlign:'center' }}>
-                <div style={{ fontSize:28, marginBottom:6 }}>{icon}</div>
-                <p style={{ fontSize:13, fontWeight:600, color:'var(--t1)', marginBottom:3 }}>{t}</p>
-                <p style={{ fontSize:11, color:'var(--t3)' }}>{d}</p>
+        {/* Card */}
+        <div style={{ background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:20, padding:'28px 28px' }}>
+          {/* Step bar */}
+          <div style={{ display:'flex', gap:6, marginBottom:24 }}>
+            {[1,2].map(s => (
+              <div key={s} style={{ flex:1, height:3, borderRadius:99, background: s <= step ? undefined : 'rgba(255,255,255,0.08)', overflow:'hidden' }}>
+                {s <= step && <div className="anim-grad" style={{ width:'100%', height:'100%' }} />}
               </div>
             ))}
           </div>
 
-          <button onClick={generate} disabled={loading} className="btn-primary" style={{ padding:'14px 32px', borderRadius:14, fontSize:15, position:'relative', zIndex:1 }}>
-            {loading
-              ? <><Loader2 size={18} style={{ animation:'spin 1s linear infinite' }} /><span>Analyzing Performance…</span></>
-              : <><Sparkles size={18} /><span>Generate My Plan</span></>
-            }
-          </button>
-          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-        </div>
-      ) : (
-        /* Generated plan */
-        <div className="fi fi-1" style={{ display:'flex', flexDirection:'column', gap:14 }}>
+          <h2 className="font-display" style={{ fontSize:22, fontWeight:700, color:'var(--t1)', marginBottom:6 }}>
+            {step === 1 ? 'Create account' : 'Choose your path'}
+          </h2>
+          <p style={{ fontSize:13, color:'var(--t2)', marginBottom:22 }}>
+            {step === 1 ? 'Start your personalized AI learning journey' : 'What do you want to master?'}
+          </p>
 
-          {/* Weak topics */}
-          {weakTopics.length > 0 && (
-            <div style={{ padding:'16px 20px', borderRadius:16, background:'linear-gradient(135deg,rgba(248,113,113,0.07),transparent)', border:'1px solid rgba(248,113,113,0.18)' }}>
-              <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:12 }}>
-                <AlertTriangle size={15} color="#F87171" />
-                <span style={{ fontSize:13, fontWeight:600, color:'#F87171' }}>Focus Areas</span>
-              </div>
-              <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
-                {weakTopics.map(t => (
-                  <span key={t} style={{ padding:'5px 12px', borderRadius:99, fontSize:12, fontWeight:500, background:'rgba(248,113,113,0.1)', border:'1px solid rgba(248,113,113,0.2)', color:'#F87171' }}>{t}</span>
-                ))}
-              </div>
+          {error && (
+            <div style={{ background:'rgba(248,113,113,0.1)', border:'1px solid rgba(248,113,113,0.2)', borderRadius:12, padding:'12px 16px', fontSize:13, color:'#F87171', marginBottom:18 }}>
+              {error}
             </div>
           )}
 
-          {/* Plan */}
-          <div style={{ borderRadius:16, overflow:'hidden', background:'rgba(255,255,255,0.02)', border:'1px solid rgba(255,255,255,0.07)' }}>
-            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'16px 20px', borderBottom:'1px solid rgba(255,255,255,0.06)' }}>
-              <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-                <Zap size={16} color="var(--violet)" />
-                <span className="font-display" style={{ fontSize:14, fontWeight:600, color:'var(--t1)' }}>Your 7-Day Roadmap</span>
-              </div>
-              <button onClick={reset} style={{
-                display:'flex', alignItems:'center', gap:6, padding:'7px 12px', borderRadius:10, fontSize:12, fontWeight:500,
-                background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)', color:'var(--t2)', cursor:'pointer', transition:'all 0.15s',
-              }}
-              onMouseEnter={e=>e.currentTarget.style.borderColor='rgba(255,255,255,0.15)'}
-              onMouseLeave={e=>e.currentTarget.style.borderColor='rgba(255,255,255,0.08)'}>
-                <RefreshCw size={13} /> Regenerate
+          {step === 1 ? (
+            <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+              {[
+                { label:'Full name', key:'name', type:'text', icon:<User size={15} />, placeholder:'Your full name' },
+                { label:'Email', key:'email', type:'email', icon:<Mail size={15} />, placeholder:'you@example.com' },
+                { label:'Password', key:'password', type: showPass ? 'text' : 'password', icon:<Lock size={15} />, placeholder:'Min. 6 characters', isPass:true },
+              ].map(({ label, key, type, icon, placeholder, isPass }) => (
+                <div key={key}>
+                  <label style={{ display:'block', fontSize:12, fontWeight:500, color:'var(--t2)', marginBottom:8 }}>{label}</label>
+                  <div style={{ position:'relative' }}>
+                    <span style={{ position:'absolute', left:14, top:'50%', transform:'translateY(-50%)', color:'var(--t3)', display:'flex', pointerEvents:'none' }}>{icon}</span>
+                    <input type={type} value={form[key]}
+                      onChange={e => setForm({...form, [key]: e.target.value})}
+                      className="p-input" placeholder={placeholder}
+                      style={isPass ? { paddingRight:44 } : {}} />
+                    {isPass && (
+                      <button type="button" onClick={() => setShowPass(!showPass)} style={{ position:'absolute', right:14, top:'50%', transform:'translateY(-50%)', background:'none', border:'none', cursor:'pointer', color:'var(--t3)', display:'flex', alignItems:'center' }}>
+                        {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+              <button type="button"
+                disabled={!form.name || !form.email || !form.password}
+                onClick={() => setStep(2)}
+                className="btn-primary"
+                style={{ width:'100%', padding:'13px 20px', borderRadius:12, marginTop:4 }}>
+                <span>Next</span><ArrowRight size={16} />
               </button>
             </div>
-            <div style={{ padding:'24px 24px' }}>
-              {plan.includes('Failed') ? (
-                <p style={{ fontSize:13, color:'#F87171' }}>{plan}</p>
-              ) : (
-                <pre style={{ whiteSpace:'pre-wrap', fontFamily:'inherit', fontSize:14, lineHeight:1.8, color:'var(--t2)' }}>{plan}</pre>
-              )}
-            </div>
-          </div>
+          ) : (
+            <form onSubmit={handleSubmit}>
+              <div style={{ display:'flex', flexDirection:'column', gap:8, marginBottom:18, maxHeight:340, overflowY:'auto', paddingRight:4 }}>
+                {GOALS.map(({ value, emoji, desc }) => {
+                  const selected = form.learningGoal === value;
+                  return (
+                    <button type="button" key={value}
+                      onClick={() => setForm({...form, learningGoal: value})}
+                      style={{
+                        display:'flex', alignItems:'center', gap:12, padding:'11px 14px', borderRadius:12,
+                        border: selected ? '1px solid rgba(139,92,246,0.4)' : '1px solid rgba(255,255,255,0.07)',
+                        background: selected ? 'linear-gradient(135deg,rgba(139,92,246,0.15),rgba(244,114,182,0.07))' : 'rgba(255,255,255,0.03)',
+                        cursor:'pointer', textAlign:'left', transition:'all 0.15s',
+                      }}>
+                      <span style={{ fontSize:20, width:28, textAlign:'center', flexShrink:0 }}>{emoji}</span>
+                      <div style={{ flex:1 }}>
+                        <div style={{ fontSize:13, fontWeight:500, color: selected ? 'var(--t1)' : 'var(--t2)' }}>{value}</div>
+                        <div style={{ fontSize:11, color:'var(--t3)' }}>{desc}</div>
+                      </div>
+                      {selected && <div style={{ width:16, height:16, borderRadius:'50%', background:'var(--violet)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}><div style={{ width:6, height:6, borderRadius:'50%', background:'#fff' }} /></div>}
+                    </button>
+                  );
+                })}
+              </div>
+              <div style={{ display:'flex', gap:10 }}>
+                <button type="button" onClick={() => setStep(1)} style={{ padding:'12px 20px', borderRadius:12, border:'1px solid rgba(255,255,255,0.08)', background:'rgba(255,255,255,0.04)', color:'var(--t2)', fontSize:13, fontWeight:500, cursor:'pointer' }}>
+                  Back
+                </button>
+                <button type="submit" disabled={!form.learningGoal || loading} className="btn-primary"
+                  style={{ flex:1, padding:'12px 20px', borderRadius:12 }}>
+                  {loading ? 'Creating…' : <><span>Get Started</span><ArrowRight size={16} /></>}
+                </button>
+              </div>
+            </form>
+          )}
+
+          <p style={{ textAlign:'center', fontSize:13, color:'var(--t3)', marginTop:20 }}>
+            Already have an account?{' '}
+            <Link to="/login" style={{ color:'#A78BFA', fontWeight:500, textDecoration:'none' }}>Sign in</Link>
+          </p>
         </div>
-      )}
+      </div>
     </div>
   );
 }
