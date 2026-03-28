@@ -1,123 +1,164 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext'; // <-- Added your AuthContext
-import { 
-  LayoutDashboard, 
-  MessageSquare, 
-  Calendar, 
-  LogOut, 
-  Menu, 
-  X, 
-  GraduationCap 
-} from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import { LayoutDashboard, MessageSquare, Calendar, LogOut, Menu, X, Sparkles, ChevronRight } from 'lucide-react';
 
-const AppLayout = ({ children }) => {
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+const NAV = [
+  { name: 'Dashboard',    path: '/',         icon: LayoutDashboard, sub: 'Overview' },
+  { name: 'AI Companion', path: '/chat',      icon: MessageSquare,   sub: 'Chat & Learn' },
+  { name: 'Study Plan',   path: '/studyplan', icon: Calendar,        sub: 'Roadmap' },
+];
+
+export default function AppLayout({ children }) {
+  const [open, setOpen] = useState(false);
   const location = useLocation();
-  
-  // Bring in your auth logic
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-  };
-
-  const navItems = [
-    { name: 'Dashboard', path: '/', icon: LayoutDashboard },
-    { name: 'True Friend AI', path: '/chat', icon: MessageSquare },
-    { name: 'Study Plan', path: '/studyplan', icon: Calendar },
-  ];
-
-  const toggleMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
-
-  // If there's no user, we shouldn't render the protected layout
   if (!user) return null;
+  const initial = (user.name || user.email || '?')[0].toUpperCase();
+  const handleLogout = () => { logout(); navigate('/login'); };
 
   return (
-    <div className="flex h-screen w-full bg-slate-950 text-slate-200 overflow-hidden font-sans">
-      
-      {/* --- MOBILE HEADER --- */}
-      <div className="md:hidden absolute top-0 w-full h-16 bg-slate-900/80 backdrop-blur-md border-b border-slate-800 flex items-center justify-between px-4 z-20">
-        <div className="flex items-center gap-2 text-indigo-400 font-bold text-xl">
-          <GraduationCap size={24} />
-          <span>True Friend AI</span>
-        </div>
-        <button onClick={toggleMenu} className="p-2 text-slate-300 hover:text-white">
-          {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-        </button>
-      </div>
+    <div style={{ display:'flex', height:'100vh', width:'100%', overflow:'hidden', background:'var(--bg)', position:'relative' }}>
 
-      {/* --- SIDEBAR (Desktop & Mobile Slide-out) --- */}
-      <aside className={`
-        absolute md:relative z-30 flex flex-col w-64 h-full bg-slate-900 border-r border-slate-800 transition-transform duration-300 ease-in-out
-        ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
-      `}>
-        {/* Logo Area */}
-        <div className="hidden md:flex h-20 items-center gap-3 px-6 text-indigo-400 font-bold text-2xl border-b border-slate-800/50">
-          <GraduationCap size={28} />
-          <span>True Friend AI</span>
+      {/* ── SIDEBAR ──────────────────────────────────────── */}
+      <aside style={{
+        position: open ? 'absolute' : 'relative',
+        zIndex: 30,
+        display: 'flex',
+        flexDirection: 'column',
+        width: 240,
+        minWidth: 240,
+        height: '100%',
+        background: 'linear-gradient(180deg, #0C1220 0%, #080E1A 100%)',
+        borderRight: '1px solid rgba(255,255,255,0.06)',
+        transition: 'transform 0.3s ease',
+        transform: open || window.innerWidth >= 768 ? 'translateX(0)' : 'translateX(-100%)',
+        flexShrink: 0,
+      }}
+      className="sidebar-el"
+      >
+        {/* Logo */}
+        <div style={{ height: 64, display:'flex', alignItems:'center', gap:12, padding:'0 20px', borderBottom:'1px solid rgba(255,255,255,0.05)', flexShrink:0 }}>
+          <div className="anim-grad" style={{ width:32, height:32, borderRadius:9, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+            <Sparkles size={16} color="#fff" />
+          </div>
+          <span className="font-display" style={{ fontWeight:700, fontSize:16, color:'var(--t1)', whiteSpace:'nowrap' }}>
+            True Friend <span className="grad-text">AI</span>
+          </span>
         </div>
 
-        {/* Navigation Links */}
-        <nav className="flex-1 mt-6 md:mt-10 px-4 space-y-2">
-          {navItems.map((item) => {
-            const isActive = location.pathname === item.path;
-            const Icon = item.icon;
-            
+        {/* Nav */}
+        <nav style={{ flex:1, padding:'20px 12px', overflowY:'auto', display:'flex', flexDirection:'column', gap:4 }}>
+          <p style={{ fontSize:10, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'var(--t3)', padding:'0 8px', marginBottom:8 }}>
+            Navigation
+          </p>
+          {NAV.map(({ name, path, icon: Icon, sub }) => {
+            const active = location.pathname === path;
             return (
-              <Link 
-                key={item.name} 
-                to={item.path}
-                onClick={() => setIsMobileMenuOpen(false)}
-                className={`
-                  flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200
-                  ${isActive 
-                    ? 'bg-indigo-600/10 text-indigo-400 shadow-[inset_0px_0px_20px_rgba(79,70,229,0.1)]' 
-                    : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'}
-                `}
-              >
-                <Icon size={20} className={isActive ? 'text-indigo-400' : 'text-slate-500'} />
-                <span className="font-medium">{item.name}</span>
+              <Link key={path} to={path} onClick={() => setOpen(false)}
+                style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 12px', borderRadius:14, textDecoration:'none', transition:'all 0.15s' }}
+                className={active ? 'nav-active' : 'nav-inactive'}>
+                <div style={{
+                  width:34, height:34, borderRadius:10, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0,
+                  background: active ? 'rgba(139,92,246,0.2)' : 'rgba(255,255,255,0.05)',
+                }}>
+                  <Icon size={16} color={active ? '#A78BFA' : 'var(--t3)'} />
+                </div>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontSize:13, fontWeight:500, color: active ? '#fff' : 'var(--t2)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{name}</div>
+                  <div style={{ fontSize:11, color:'var(--t3)' }}>{sub}</div>
+                </div>
+                {active && <ChevronRight size={14} color="#A78BFA" style={{ flexShrink:0 }} />}
               </Link>
             );
           })}
         </nav>
 
-        {/* User / Logout Area */}
-        <div className="p-4 border-t border-slate-800">
-          {/* Optional: Show user's name/email if you have it in your user object */}
-          <div className="px-4 py-3 mb-2 text-sm text-slate-300 bg-slate-800/50 rounded-xl truncate border border-slate-700/50">
-            {user.email || 'Student User'}
+        {/* Bottom */}
+        <div style={{ padding:'12px', borderTop:'1px solid rgba(255,255,255,0.05)', flexShrink:0 }}>
+          {/* Streak */}
+          <div style={{ display:'flex', alignItems:'center', gap:8, padding:'9px 12px', borderRadius:12, background:'rgba(251,178,60,0.08)', border:'1px solid rgba(251,178,60,0.15)', marginBottom:8 }}>
+            <span style={{ fontSize:16 }}>🔥</span>
+            <span style={{ fontSize:12, fontWeight:500, color:'#FBB23C' }}>Keep your streak going!</span>
           </div>
-
-          <button 
-            onClick={handleLogout}
-            className="flex items-center gap-3 w-full px-4 py-3 text-sm font-medium text-slate-400 rounded-xl hover:bg-red-500/10 hover:text-red-400 transition-colors"
-          >
-            <LogOut size={20} />
-            <span>Logout</span>
+          {/* User */}
+          <div style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 12px', borderRadius:12, background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.06)', marginBottom:6 }}>
+            <div style={{ position:'relative', flexShrink:0 }}>
+              <div className="anim-grad" style={{ width:32, height:32, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:13, fontWeight:700, color:'#fff' }}>
+                {initial}
+              </div>
+              <span className="pulse" style={{ position:'absolute', bottom:-1, right:-1, width:10, height:10, borderRadius:'50%', background:'#34D399', border:'2px solid #0C1220' }} />
+            </div>
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ fontSize:13, fontWeight:500, color:'var(--t1)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{user.name || 'Student'}</div>
+              <div style={{ fontSize:11, color:'var(--t3)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{user.email}</div>
+            </div>
+          </div>
+          {/* Logout */}
+          <button onClick={handleLogout} style={{
+            display:'flex', alignItems:'center', gap:8, width:'100%', padding:'9px 12px',
+            borderRadius:12, border:'1px solid transparent', background:'transparent',
+            color:'var(--t3)', fontSize:13, cursor:'pointer', transition:'all 0.15s',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background='rgba(248,113,113,0.09)'; e.currentTarget.style.borderColor='rgba(248,113,113,0.2)'; e.currentTarget.style.color='#F87171'; }}
+          onMouseLeave={e => { e.currentTarget.style.background='transparent'; e.currentTarget.style.borderColor='transparent'; e.currentTarget.style.color='var(--t3)'; }}>
+            <LogOut size={15} /> Sign out
           </button>
         </div>
       </aside>
 
-      {/* --- MAIN CONTENT AREA --- */}
-      <main className="flex-1 h-full overflow-y-auto pt-16 md:pt-0 bg-slate-950 relative z-0">
-        <div className="max-w-7xl mx-auto p-4 md:p-8">
+      {/* ── MOBILE TOPBAR ───────────────────────────────── */}
+      <div className="mobile-bar" style={{
+        position:'absolute', top:0, left:0, right:0, height:56, zIndex:20,
+        display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 16px',
+        background:'rgba(7,11,20,0.85)', backdropFilter:'blur(12px)',
+        borderBottom:'1px solid rgba(255,255,255,0.06)',
+      }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          <div className="anim-grad" style={{ width:28, height:28, borderRadius:8, display:'flex', alignItems:'center', justifyContent:'center' }}>
+            <Sparkles size={13} color="#fff" />
+          </div>
+          <span className="font-display" style={{ fontWeight:700, fontSize:15, color:'var(--t1)' }}>
+            True Friend <span className="grad-text">AI</span>
+          </span>
+        </div>
+        <button onClick={() => setOpen(!open)} style={{ padding:8, background:'transparent', border:'none', color:'var(--t2)', cursor:'pointer' }}>
+          {open ? <X size={22} /> : <Menu size={22} />}
+        </button>
+      </div>
+
+      {/* ── MAIN ────────────────────────────────────────── */}
+      <main style={{ flex:1, height:'100%', overflowY:'auto', position:'relative', background:'var(--bg)' }}
+        className="main-content">
+        {/* Ambient orbs */}
+        <div className="orb" style={{ position:'fixed', top:60, right:40, width:320, height:320, borderRadius:'50%', background:'radial-gradient(circle, rgba(139,92,246,0.12) 0%, transparent 70%)', filter:'blur(50px)', pointerEvents:'none', opacity:0.6 }} />
+        <div className="orb2" style={{ position:'fixed', bottom:80, left:80, width:260, height:260, borderRadius:'50%', background:'radial-gradient(circle, rgba(244,114,182,0.1) 0%, transparent 70%)', filter:'blur(50px)', pointerEvents:'none', opacity:0.5 }} />
+        <div style={{ maxWidth:1100, margin:'0 auto', padding:'28px 28px 40px', position:'relative', zIndex:1 }}
+          className="main-inner">
           {children}
         </div>
       </main>
 
-      {/* Mobile Overlay */}
-      {isMobileMenuOpen && (
-        <div 
-          className="fixed inset-0 bg-black/60 z-20 md:hidden backdrop-blur-sm"
-          onClick={toggleMenu}
-        />
+      {/* Mobile overlay */}
+      {open && (
+        <div onClick={() => setOpen(false)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.6)', backdropFilter:'blur(4px)', zIndex:25 }} />
       )}
+
+      <style>{`
+        @media (min-width: 768px) {
+          .mobile-bar { display: none !important; }
+          .sidebar-el { position: relative !important; transform: translateX(0) !important; }
+          .main-content { padding-top: 0 !important; }
+          .main-inner { padding: 32px 36px 48px !important; }
+        }
+        @media (max-width: 767px) {
+          .sidebar-el { position: absolute !important; transform: ${open ? 'translateX(0)' : 'translateX(-100%)'} !important; }
+          .main-content { padding-top: 56px; }
+          .main-inner { padding: 20px 16px 32px !important; }
+        }
+      `}</style>
     </div>
   );
-};
-
-export default AppLayout;
+}

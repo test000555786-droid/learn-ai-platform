@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
+import { ArrowLeft, ArrowRight, CheckCircle, Trophy, RotateCcw, Loader2, Sparkles } from 'lucide-react';
 
 export default function Quiz() {
   const { topic } = useParams();
@@ -14,125 +15,99 @@ export default function Quiz() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    const fetchQuiz = async () => {
+    (async () => {
       try {
-        setLoading(true);
-        setError('');
         const { data } = await api.get(`/quiz/${encodeURIComponent(topic)}`);
-        if (!data.questions || data.questions.length === 0) {
-          setError('No questions returned. Please try again.');
-          return;
-        }
+        if (!data.questions?.length) { setError('No questions returned. Please try again.'); return; }
         setQuestions(data.questions);
         setAnswers(new Array(data.questions.length).fill(null));
-      } catch (err) {
-        console.error('Quiz fetch error:', err);
-        setError(err.response?.data?.message || 'Failed to load quiz. Check your GROQ_API_KEY in server/.env');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchQuiz();
+      } catch (err) { setError(err.response?.data?.message || 'Failed to load quiz.'); }
+      finally { setLoading(false); }
+    })();
   }, [topic]);
-
-  const handleAnswer = (option) => {
-    const updated = [...answers];
-    updated[current] = option;
-    setAnswers(updated);
-  };
 
   const submit = async () => {
     setSubmitting(true);
     try {
-      const { data } = await api.post('/quiz/submit', {
-        topic,
-        questions,
-        userAnswers: answers,
-      });
+      const { data } = await api.post('/quiz/submit', { topic, questions, userAnswers: answers });
       setResult(data);
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to submit quiz.');
-    } finally {
-      setSubmitting(false);
-    }
+    } catch (err) { setError(err.response?.data?.message || 'Failed to submit.'); }
+    finally { setSubmitting(false); }
   };
 
-  // ── Loading ──
+  const fullPage = { minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', padding:'24px 16px', background:'var(--bg)', position:'relative' };
+
   if (loading) return (
-    <div className="min-h-screen bg-gray-950 flex flex-col items-center justify-center text-white gap-4">
-      <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-      <p className="text-gray-400">Generating quiz for <span className="text-white font-semibold">{topic}</span>...</p>
-      <p className="text-gray-600 text-sm">This may take a few seconds</p>
+    <div style={{ ...fullPage, flexDirection:'column', gap:16 }}>
+      <div className="anim-grad" style={{ width:56, height:56, borderRadius:16, display:'flex', alignItems:'center', justifyContent:'center', boxShadow:'0 0 40px rgba(139,92,246,0.4)' }}>
+        <Sparkles size={24} color="#fff" />
+      </div>
+      <p className="font-display" style={{ fontSize:17, fontWeight:600, color:'var(--t1)' }}>
+        Generating <span className="grad-text">{topic}</span> quiz…
+      </p>
+      <p style={{ fontSize:13, color:'var(--t3)' }}>Crafting personalized questions for you</p>
     </div>
   );
 
-  // ── Error ──
   if (error) return (
-    <div className="min-h-screen bg-gray-950 flex items-center justify-center px-6">
-      <div className="bg-gray-900 rounded-2xl p-8 max-w-md w-full text-center">
-        <p className="text-4xl mb-4">❌</p>
-        <h2 className="text-white text-xl font-semibold mb-2">Something went wrong</h2>
-        <p className="text-red-400 text-sm mb-6 bg-red-500/10 p-3 rounded-xl">{error}</p>
-        <div className="flex gap-3 justify-center">
-          <button
-            onClick={() => { setError(''); setLoading(true); window.location.reload(); }}
-            className="bg-indigo-600 hover:bg-indigo-700 px-6 py-2 rounded-xl text-white text-sm transition"
-          >
-            Try Again
-          </button>
-          <button
-            onClick={() => navigate('/')}
-            className="bg-gray-700 hover:bg-gray-600 px-6 py-2 rounded-xl text-white text-sm transition"
-          >
-            Back to Dashboard
-          </button>
+    <div style={fullPage}>
+      <div style={{ width:'100%', maxWidth:420, background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:20, padding:'32px', textAlign:'center' }}>
+        <div style={{ fontSize:40, marginBottom:16 }}>⚠️</div>
+        <h2 className="font-display" style={{ fontSize:20, fontWeight:700, color:'var(--t1)', marginBottom:12 }}>Something went wrong</h2>
+        <p style={{ fontSize:13, padding:'12px 16px', borderRadius:12, background:'rgba(248,113,113,0.1)', border:'1px solid rgba(248,113,113,0.2)', color:'#F87171', marginBottom:24 }}>{error}</p>
+        <div style={{ display:'flex', gap:10, justifyContent:'center' }}>
+          <button onClick={() => window.location.reload()} className="btn-primary" style={{ padding:'10px 20px', borderRadius:12, fontSize:13 }}>Try Again</button>
+          <button onClick={() => navigate('/')} style={{ padding:'10px 20px', borderRadius:12, fontSize:13, background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.08)', color:'var(--t2)', cursor:'pointer' }}>Dashboard</button>
         </div>
       </div>
     </div>
   );
 
-  // ── Result ──
   if (result) {
-    const masteryColor =
-      result.masteryScore >= 80 ? 'text-green-400' :
-      result.masteryScore >= 60 ? 'text-yellow-400' : 'text-red-400';
+    const score = result.masteryScore;
+    const isGreat = score >= 80, isOk = score >= 60;
+    const emoji = isGreat ? '🏆' : isOk ? '👍' : '📚';
+    const msg = isGreat ? 'Excellent work!' : isOk ? 'Good effort!' : 'Keep practicing!';
+    const sc = isGreat ? '#2DD4BF' : isOk ? '#FBB23C' : '#F87171';
+    const circ = 2 * Math.PI * 40;
 
     return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center px-6">
-        <div className="bg-gray-900 rounded-2xl p-10 max-w-md w-full text-center text-white">
-          <p className="text-5xl mb-4">
-            {result.score >= 80 ? '🏆' : result.score >= 60 ? '👍' : '📚'}
-          </p>
-          <h2 className="text-3xl font-bold mb-1">Quiz Complete!</h2>
-          <p className="text-gray-400 mb-6">{topic}</p>
+      <div style={fullPage}>
+        <div className="fi" style={{ width:'100%', maxWidth:400, background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:24, padding:'36px 32px', textAlign:'center' }}>
+          <div style={{ fontSize:48, marginBottom:12 }}>{emoji}</div>
+          <h2 className="font-display" style={{ fontSize:24, fontWeight:700, color:'var(--t1)', marginBottom:6 }}>{msg}</h2>
+          <p style={{ fontSize:13, color:'var(--t2)', marginBottom:28 }}>{topic}</p>
 
-          <div className="bg-gray-800 rounded-xl p-6 mb-6 space-y-3">
-            <div className="flex justify-between">
-              <span className="text-gray-400">Score</span>
-              <span className="font-bold text-2xl text-indigo-400">{result.score}%</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-400">Mastery Score</span>
-              <span className={`font-semibold ${masteryColor}`}>{result.masteryScore}%</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-400">Next Difficulty</span>
-              <span className="text-yellow-400 capitalize font-semibold">{result.difficulty}</span>
+          {/* Score ring */}
+          <div style={{ position:'relative', width:112, height:112, margin:'0 auto 28px' }}>
+            <svg style={{ position:'absolute', inset:0, transform:'rotate(-90deg)' }} viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="8" />
+              <circle cx="50" cy="50" r="40" fill="none" stroke={sc} strokeWidth="8"
+                strokeDasharray={circ} strokeDashoffset={circ * (1 - score / 100)}
+                strokeLinecap="round" style={{ transition:'stroke-dashoffset 1s ease' }} />
+            </svg>
+            <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center' }}>
+              <span className="font-display" style={{ fontSize:24, fontWeight:700, color:sc, lineHeight:1 }}>{score}%</span>
+              <span style={{ fontSize:10, color:'var(--t3)', marginTop:2 }}>mastery</span>
             </div>
           </div>
 
-          <div className="flex gap-3 justify-center">
-            <button
-              onClick={() => window.location.reload()}
-              className="bg-indigo-600 hover:bg-indigo-700 px-6 py-3 rounded-xl font-semibold transition"
-            >
-              Retry Quiz
+          {/* Stats */}
+          <div style={{ background:'rgba(255,255,255,0.02)', border:'1px solid rgba(255,255,255,0.07)', borderRadius:14, padding:'16px 20px', marginBottom:24 }}>
+            {[['Quiz Score', `${result.score}%`, '#A78BFA'], ['Mastery', `${result.masteryScore}%`, sc], ['Next Level', result.difficulty, '#FBB23C']].map(([k,v,c]) => (
+              <div key={k} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'7px 0', borderBottom:'1px solid rgba(255,255,255,0.04)' }}>
+                <span style={{ fontSize:13, color:'var(--t3)' }}>{k}</span>
+                <span style={{ fontSize:13, fontWeight:600, color:c, textTransform:'capitalize' }}>{v}</span>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ display:'flex', gap:10 }}>
+            <button onClick={() => window.location.reload()} style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', gap:6, padding:'12px', borderRadius:12, fontSize:13, fontWeight:500, background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.09)', color:'var(--t2)', cursor:'pointer' }}>
+              <RotateCcw size={14} /> Retry
             </button>
-            <button
-              onClick={() => navigate('/')}
-              className="bg-gray-700 hover:bg-gray-600 px-6 py-3 rounded-xl font-semibold transition"
-            >
-              Dashboard
+            <button onClick={() => navigate('/')} className="btn-primary" style={{ flex:1, padding:'12px', borderRadius:12, fontSize:13 }}>
+              <Trophy size={14} /> Dashboard
             </button>
           </div>
         </div>
@@ -140,78 +115,84 @@ export default function Quiz() {
     );
   }
 
-  // ── Quiz ──
   const q = questions[current];
   const progress = ((current + 1) / questions.length) * 100;
+  const answered = answers.filter(Boolean).length;
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white flex flex-col items-center justify-center px-6 py-12">
-      <div className="w-full max-w-2xl">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <button onClick={() => navigate('/')} className="text-gray-500 hover:text-white text-sm transition">
-            ← Dashboard
+    <div style={{ ...fullPage, alignItems:'flex-start', paddingTop:40 }}>
+      <div className="fi" style={{ width:'100%', maxWidth:680 }}>
+        {/* Top bar */}
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:16 }}>
+          <button onClick={() => navigate('/')} style={{ display:'flex', alignItems:'center', gap:6, fontSize:13, color:'var(--t3)', background:'none', border:'none', cursor:'pointer', transition:'color 0.15s' }}
+            onMouseEnter={e=>e.currentTarget.style.color='var(--t1)'} onMouseLeave={e=>e.currentTarget.style.color='var(--t3)'}>
+            <ArrowLeft size={15} /> Back
           </button>
-          <span className="text-gray-400 text-sm font-medium">{topic}</span>
-          <span className="text-gray-500 text-sm">{current + 1} / {questions.length}</span>
+          <div style={{ padding:'5px 14px', borderRadius:99, background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)' }}>
+            <span className="grad-text" style={{ fontSize:12, fontWeight:600 }}>{topic}</span>
+          </div>
+          <span style={{ fontSize:13, color:'var(--t3)' }}>{current+1} / {questions.length}</span>
         </div>
 
-        {/* Progress Bar */}
-        <div className="w-full bg-gray-800 rounded-full h-2 mb-8">
-          <div
-            className="bg-indigo-500 h-2 rounded-full transition-all duration-300"
-            style={{ width: `${progress}%` }}
-          />
+        {/* Progress bar */}
+        <div style={{ height:4, borderRadius:99, background:'rgba(255,255,255,0.07)', marginBottom:28, overflow:'hidden' }}>
+          <div className="anim-grad" style={{ height:'100%', borderRadius:99, width:`${progress}%`, transition:'width 0.4s ease' }} />
         </div>
 
         {/* Question */}
-        <div className="bg-gray-900 rounded-2xl p-8 mb-6">
-          <h2 className="text-xl font-semibold leading-relaxed">{q.question}</h2>
+        <div style={{ padding:'20px 24px', borderRadius:16, marginBottom:16, background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.08)' }}>
+          <div style={{ display:'flex', alignItems:'flex-start', gap:12 }}>
+            <span style={{ flexShrink:0, width:26, height:26, borderRadius:8, display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(139,92,246,0.2)', color:'#A78BFA', fontSize:11, fontWeight:700 }}>Q{current+1}</span>
+            <p style={{ fontSize:15, fontWeight:500, color:'var(--t1)', lineHeight:1.6 }}>{q.question}</p>
+          </div>
         </div>
 
         {/* Options */}
-        <div className="grid gap-3 mb-8">
-          {q.options.map((opt, i) => (
-            <button
-              key={i}
-              onClick={() => handleAnswer(opt)}
-              className={`w-full p-4 rounded-xl border text-left transition font-medium ${
-                answers[current] === opt
-                  ? 'border-indigo-500 bg-indigo-500/20 text-white'
-                  : 'border-gray-700 bg-gray-900 hover:border-indigo-400 text-gray-300'
-              }`}
-            >
-              <span className="text-gray-500 mr-3">{String.fromCharCode(65 + i)}.</span>
-              {opt}
-            </button>
-          ))}
+        <div style={{ display:'flex', flexDirection:'column', gap:10, marginBottom:28 }}>
+          {q.options.map((opt, i) => {
+            const sel = answers[current] === opt;
+            return (
+              <button key={i}
+                onClick={() => { const u=[...answers]; u[current]=opt; setAnswers(u); }}
+                style={{
+                  display:'flex', alignItems:'center', gap:12, padding:'13px 16px', borderRadius:13, fontSize:14, textAlign:'left', cursor:'pointer', transition:'all 0.15s',
+                  ...(sel
+                    ? { background:'linear-gradient(135deg,rgba(139,92,246,0.16),rgba(244,114,182,0.08))', border:'1px solid rgba(139,92,246,0.4)', color:'var(--t1)' }
+                    : { background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.08)', color:'var(--t2)' })
+                }}
+                onMouseEnter={e => { if (!sel) { e.currentTarget.style.borderColor='rgba(139,92,246,0.25)'; e.currentTarget.style.color='var(--t1)'; } }}
+                onMouseLeave={e => { if (!sel) { e.currentTarget.style.borderColor='rgba(255,255,255,0.08)'; e.currentTarget.style.color='var(--t2)'; } }}>
+                <span style={{ flexShrink:0, width:28, height:28, borderRadius:8, display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, background: sel ? 'rgba(139,92,246,0.3)' : 'rgba(255,255,255,0.06)', color: sel ? '#C084FC' : 'var(--t3)' }}>
+                  {String.fromCharCode(65+i)}
+                </span>
+                <span style={{ flex:1 }}>{opt}</span>
+                {sel && <CheckCircle size={16} color="var(--violet)" style={{ flexShrink:0 }} />}
+              </button>
+            );
+          })}
         </div>
 
-        {/* Navigation */}
-        <div className="flex justify-between">
-          <button
-            onClick={() => setCurrent(c => c - 1)}
-            disabled={current === 0}
-            className="px-6 py-3 bg-gray-800 hover:bg-gray-700 rounded-xl disabled:opacity-30 transition"
-          >
-            ← Back
+        {/* Nav */}
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+          <button onClick={() => setCurrent(c=>c-1)} disabled={current===0} style={{
+            display:'flex', alignItems:'center', gap:6, padding:'11px 20px', borderRadius:12, fontSize:13, fontWeight:500, cursor: current===0 ? 'not-allowed' : 'pointer', opacity: current===0 ? 0.35 : 1,
+            background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)', color:'var(--t2)',
+          }}>
+            <ArrowLeft size={15} /> Previous
           </button>
 
-          {current < questions.length - 1 ? (
-            <button
-              onClick={() => setCurrent(c => c + 1)}
-              disabled={!answers[current]}
-              className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 rounded-xl disabled:opacity-30 transition font-semibold"
-            >
-              Next →
+          <span style={{ fontSize:12, color:'var(--t3)' }}>{answered}/{questions.length} answered</span>
+
+          {current < questions.length-1 ? (
+            <button onClick={() => setCurrent(c=>c+1)} disabled={!answers[current]} className="btn-primary"
+              style={{ display:'flex', alignItems:'center', gap:6, padding:'11px 20px', borderRadius:12, fontSize:13, opacity: answers[current] ? 1 : 0.35 }}>
+              Next <ArrowRight size={15} />
             </button>
           ) : (
-            <button
-              onClick={submit}
-              disabled={!answers[current] || submitting}
-              className="px-8 py-3 bg-green-600 hover:bg-green-700 rounded-xl disabled:opacity-30 transition font-semibold"
-            >
-              {submitting ? 'Submitting...' : '✓ Submit Quiz'}
+            <button onClick={submit} disabled={!answers[current] || submitting} className="btn-primary"
+              style={{ display:'flex', alignItems:'center', gap:6, padding:'11px 20px', borderRadius:12, fontSize:13, opacity: answers[current] ? 1 : 0.35, background:'linear-gradient(135deg,#059669,#10B981)', border:'1px solid rgba(16,185,129,0.4)' }}>
+              {submitting ? <Loader2 size={15} style={{ animation:'spin 1s linear infinite' }} /> : <CheckCircle size={15} />}
+              {submitting ? 'Submitting…' : 'Submit Quiz'}
             </button>
           )}
         </div>

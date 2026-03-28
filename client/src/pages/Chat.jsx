@@ -1,138 +1,178 @@
 import { useState, useRef, useEffect } from 'react';
 import api from '../services/api';
-import { Send, Bot, User, Loader2, Sparkles } from 'lucide-react';
+import { Send, Bot, User, Sparkles, Plus, Copy, Check, Lightbulb } from 'lucide-react';
+
+const SUGGESTIONS = [
+  'Explain React hooks with examples',
+  "What's the difference between SQL and NoSQL?",
+  'Help me understand Big O notation',
+  'How does machine learning work?',
+  'Best practices for REST API design',
+];
 
 export default function Chat() {
   const [messages, setMessages] = useState([
-    { role: 'assistant', content: "Hi! I'm your True Friend AI. Ask me anything! 📚" }
+    { role: 'assistant', content: "Hey! I'm your AI learning companion. I'm here to help you master any topic, clarify concepts, or guide you through challenges. What would you like to explore today? ✨" }
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  
-  // Reference to auto-scroll to the latest message
-  const messagesEndRef = useRef(null);
+  const [copied, setCopied] = useState(null);
+  const [showSugg, setShowSugg] = useState(true);
+  const bottomRef = useRef(null);
+  const taRef = useRef(null);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, loading]);
+
+  const send = async (text) => {
+    const msg = (text ?? input).trim();
+    if (!msg || loading) return;
+    setInput(''); setShowSugg(false);
+    setMessages(m => [...m, { role:'user', content: msg }]);
+    setLoading(true);
+    try {
+      const { data } = await api.post('/ai/chat', { message: msg });
+      setMessages(m => [...m, { role:'assistant', content: data.reply }]);
+    } catch { setMessages(m => [...m, { role:'assistant', content:'I hit a snag — please try again.' }]); }
+    finally { setLoading(false); }
   };
 
-  // Trigger scroll whenever messages update
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages, loading]);
+  const copyMsg = (content, idx) => {
+    navigator.clipboard.writeText(content);
+    setCopied(idx);
+    setTimeout(() => setCopied(null), 2000);
+  };
 
-  const send = async () => {
-    if (!input.trim() || loading) return;
-    
-    const userMsg = { role: 'user', content: input };
-    setMessages((m) => [...m, userMsg]);
-    setInput('');
-    setLoading(true);
-
-    try {
-      const { data } = await api.post('/ai/chat', { message: input });
-      setMessages((m) => [...m, { role: 'assistant', content: data.reply }]);
-    } catch (error) {
-      setMessages((m) => [...m, { role: 'assistant', content: "Sorry, I encountered an error. Please try again." }]);
-    } finally {
-      setLoading(false);
-    }
+  const resetChat = () => {
+    setMessages([{ role:'assistant', content:"Hey! I'm your AI learning companion. I'm here to help you master any topic, clarify concepts, or guide you through challenges. What would you like to explore today? ✨" }]);
+    setShowSugg(true);
   };
 
   return (
-    // We use a fixed height calculation so the chat fits perfectly inside the layout without page scrolling
-    <div className="flex flex-col h-[calc(100vh-8rem)] max-w-4xl mx-auto relative">
-      
-      {/* Header Area */}
-      <div className="flex items-center gap-3 mb-6 px-4">
-        <div className="p-2 bg-indigo-500/10 rounded-lg text-indigo-400">
-          <Sparkles size={24} />
+    <div style={{ display:'flex', flexDirection:'column', height:'calc(100vh - 80px)', maxWidth:800, margin:'0 auto' }}>
+
+      {/* Header */}
+      <div className="fi fi-1" style={{ display:'flex', alignItems:'center', gap:14, paddingBottom:16, marginBottom:4, borderBottom:'1px solid rgba(255,255,255,0.05)', flexShrink:0 }}>
+        <div style={{ position:'relative', flexShrink:0 }}>
+          <div className="anim-grad" style={{ width:42, height:42, borderRadius:12, display:'flex', alignItems:'center', justifyContent:'center' }}>
+            <Sparkles size={18} color="#fff" />
+          </div>
+          <span className="pulse" style={{ position:'absolute', top:-2, right:-2, width:11, height:11, borderRadius:'50%', background:'#34D399', border:'2px solid var(--bg)' }} />
         </div>
-        <div>
-          <h1 className="text-xl font-bold text-slate-100">True Friend AI</h1>
-          <p className="text-sm text-slate-400">Ask questions, clarify doubts, or get study tips.</p>
+        <div style={{ flex:1 }}>
+          <h1 className="font-display" style={{ fontSize:17, fontWeight:700, color:'var(--t1)', marginBottom:2 }}>AI Companion</h1>
+          <p style={{ fontSize:11, color:'var(--t3)' }}>Always online · Powered by Claude</p>
         </div>
+        <button onClick={resetChat} style={{
+          display:'flex', alignItems:'center', gap:6, padding:'7px 14px', borderRadius:10, fontSize:12, fontWeight:500,
+          background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)', color:'var(--t2)', cursor:'pointer', transition:'all 0.15s',
+        }}
+        onMouseEnter={e=>e.currentTarget.style.borderColor='rgba(255,255,255,0.14)'}
+        onMouseLeave={e=>e.currentTarget.style.borderColor='rgba(255,255,255,0.08)'}>
+          <Plus size={14} /> New Chat
+        </button>
       </div>
 
-      {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto px-4 space-y-6 pb-32 custom-scrollbar">
+      {/* Messages */}
+      <div style={{ flex:1, overflowY:'auto', padding:'8px 0 16px', display:'flex', flexDirection:'column', gap:16 }}>
         {messages.map((m, i) => (
-          <div 
-            key={i} 
-            className={`flex gap-4 ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}
-          >
-            {/* AI Avatar */}
+          <div key={i} style={{ display:'flex', gap:12, justifyContent: m.role==='user' ? 'flex-end' : 'flex-start' }} className="fi">
             {m.role === 'assistant' && (
-              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center border border-slate-700 mt-1">
-                <Bot size={18} className="text-indigo-400" />
+              <div className="anim-grad" style={{ width:32, height:32, borderRadius:9, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, marginTop:2 }}>
+                <Bot size={15} color="#fff" />
               </div>
             )}
-
-            {/* Message Bubble */}
-            <div className={`max-w-[80%] md:max-w-[70%] p-4 whitespace-pre-wrap text-[15px] leading-relaxed shadow-sm
-              ${m.role === 'user' 
-                ? 'bg-indigo-600 text-white rounded-2xl rounded-tr-sm shadow-indigo-900/20' 
-                : 'bg-slate-800/50 text-slate-200 border border-slate-700/50 rounded-2xl rounded-tl-sm'
-              }`}
-            >
-              {m.content}
+            <div style={{ display:'flex', flexDirection:'column', alignItems: m.role==='user' ? 'flex-end' : 'flex-start', maxWidth:'78%' }}>
+              <div style={{
+                padding:'12px 16px', fontSize:14, lineHeight:1.6, whiteSpace:'pre-wrap', wordBreak:'break-word',
+                ...(m.role === 'user'
+                  ? { background:'linear-gradient(135deg,#7C3AED,#8B5CF6)', color:'#fff', borderRadius:'16px 16px 3px 16px', boxShadow:'0 4px 18px rgba(124,58,237,0.22)' }
+                  : { background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)', color:'var(--t1)', borderRadius:'16px 16px 16px 3px' })
+              }}>
+                {m.content}
+              </div>
+              {m.role === 'assistant' && (
+                <button onClick={() => copyMsg(m.content, i)} style={{ display:'flex', alignItems:'center', gap:4, marginTop:6, padding:'3px 8px', borderRadius:6, fontSize:11, color:'var(--t3)', background:'none', border:'none', cursor:'pointer', transition:'color 0.15s' }}
+                  onMouseEnter={e=>e.currentTarget.style.color='var(--t2)'} onMouseLeave={e=>e.currentTarget.style.color='var(--t3)'}>
+                  {copied===i ? <><Check size={11} />Copied</> : <><Copy size={11} />Copy</>}
+                </button>
+              )}
             </div>
-
-            {/* User Avatar */}
             {m.role === 'user' && (
-              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center mt-1 shadow-md shadow-indigo-900/20">
-                <User size={18} className="text-white" />
+              <div style={{ width:32, height:32, borderRadius:9, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, marginTop:2, background:'rgba(124,58,237,0.25)', border:'1px solid rgba(124,58,237,0.4)' }}>
+                <User size={15} color="#C084FC" />
               </div>
             )}
           </div>
         ))}
-        
-        {/* Animated Loading State */}
+
+        {/* Loading */}
         {loading && (
-          <div className="flex gap-4 justify-start">
-             <div className="flex-shrink-0 w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center border border-slate-700 mt-1">
-                <Bot size={18} className="text-indigo-400" />
-              </div>
-            <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl rounded-tl-sm px-5 py-4 flex items-center gap-2 text-slate-400">
-              <Loader2 size={16} className="animate-spin text-indigo-400" />
-              <span className="text-sm">Thinking...</span>
+          <div style={{ display:'flex', gap:12, justifyContent:'flex-start' }}>
+            <div className="anim-grad" style={{ width:32, height:32, borderRadius:9, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, marginTop:2 }}>
+              <Bot size={15} color="#fff" />
+            </div>
+            <div style={{ display:'flex', alignItems:'center', gap:5, padding:'12px 16px', borderRadius:'16px 16px 16px 3px', background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)' }}>
+              {[0,1,2].map(j => <span key={j} className="typing-dot" style={{ width:7, height:7, borderRadius:'50%', background:'var(--violet)', display:'block', animationDelay:`${j*0.2}s` }} />)}
             </div>
           </div>
         )}
-        
-        {/* Invisible div to scroll to */}
-        <div ref={messagesEndRef} />
+
+        {/* Suggestions */}
+        {showSugg && messages.length === 1 && (
+          <div className="fi fi-2">
+            <div style={{ display:'flex', alignItems:'center', gap:7, marginBottom:10 }}>
+              <Lightbulb size={13} color="var(--amber)" />
+              <p style={{ fontSize:12, fontWeight:500, color:'var(--t3)' }}>Suggested questions</p>
+            </div>
+            <div style={{ display:'flex', flexDirection:'column', gap:7 }}>
+              {SUGGESTIONS.map(s => (
+                <button key={s} onClick={() => send(s)} style={{
+                  textAlign:'left', padding:'11px 16px', borderRadius:12, fontSize:13,
+                  background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.07)',
+                  color:'var(--t2)', cursor:'pointer', transition:'all 0.15s',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor='rgba(139,92,246,0.35)'; e.currentTarget.style.color='var(--t1)'; e.currentTarget.style.background='rgba(139,92,246,0.06)'; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor='rgba(255,255,255,0.07)'; e.currentTarget.style.color='var(--t2)'; e.currentTarget.style.background='rgba(255,255,255,0.03)'; }}>
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div ref={bottomRef} />
       </div>
 
-      {/* Input Area - Floats at the bottom with a blur effect */}
-      <div className="absolute bottom-0 left-0 w-full pt-10 pb-4 px-4 bg-gradient-to-t from-slate-950 via-slate-950/95 to-transparent">
-        <div className="relative max-w-3xl mx-auto flex items-end gap-2 bg-slate-900 border border-slate-700 focus-within:border-indigo-500/50 rounded-2xl p-2 shadow-xl transition-colors duration-200">
-          <textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                send();
-              }
-            }}
-            placeholder="Ask your doubt... (Shift+Enter for new line)"
-            className="flex-1 max-h-32 min-h-[44px] bg-transparent resize-none outline-none text-slate-200 px-3 py-2.5 custom-scrollbar"
-            rows="1"
+      {/* Input area */}
+      <div style={{ flexShrink:0, paddingTop:14, borderTop:'1px solid rgba(255,255,255,0.05)' }}>
+        <div style={{
+          display:'flex', alignItems:'flex-end', gap:10, padding:'8px 8px 8px 16px',
+          background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)',
+          borderRadius:16, transition:'border-color 0.2s',
+        }}
+        onFocusCapture={e => e.currentTarget.style.borderColor='rgba(139,92,246,0.45)'}
+        onBlurCapture={e => e.currentTarget.style.borderColor='rgba(255,255,255,0.08)'}>
+          <textarea ref={taRef} value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={e => { if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
+            placeholder="Ask anything… (Shift+Enter for new line)"
+            rows={1}
+            style={{ flex:1, background:'transparent', border:'none', outline:'none', resize:'none', fontSize:14, color:'var(--t1)', fontFamily:'inherit', minHeight:40, maxHeight:128, paddingTop:8, paddingBottom:8, lineHeight:1.5 }}
           />
-          <button 
-            onClick={send} 
-            disabled={!input.trim() || loading}
-            className={`p-3 rounded-xl flex-shrink-0 transition-all duration-200
-              ${!input.trim() || loading 
-                ? 'bg-slate-800 text-slate-500 cursor-not-allowed' 
-                : 'bg-indigo-600 text-white hover:bg-indigo-500 hover:shadow-lg hover:shadow-indigo-500/25'}
-            `}
-          >
-            <Send size={20} className={loading ? 'opacity-0' : 'opacity-100'} />
-            {/* If you wanted a spinner on the button itself, you could add it here */}
+          <button onClick={() => send()} disabled={!input.trim() || loading} style={{
+            flexShrink:0, width:38, height:38, borderRadius:10, display:'flex', alignItems:'center', justifyContent:'center',
+            cursor: input.trim() && !loading ? 'pointer' : 'not-allowed',
+            transition:'all 0.18s',
+            ...(input.trim() && !loading
+              ? { background:'linear-gradient(135deg,#8B5CF6,#7C3AED)', border:'1px solid rgba(139,92,246,0.4)', boxShadow:'0 4px 14px rgba(139,92,246,0.35)' }
+              : { background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.08)' })
+          }}>
+            <Send size={15} color={input.trim() && !loading ? '#fff' : 'var(--t3)'} />
           </button>
         </div>
+        <p style={{ textAlign:'center', fontSize:11, color:'var(--t4)', marginTop:8 }}>
+          AI can make mistakes — verify important info.
+        </p>
       </div>
     </div>
   );
